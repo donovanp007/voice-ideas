@@ -1,22 +1,38 @@
 import 'package:uuid/uuid.dart';
 
-/// Represents a single thought/idea captured by the user
+/// Represents a single thought/idea/note captured by the user
+/// UPDATED: Now supports titles, pinning, archiving, and checklists!
 class Thought {
   final String id;
   final String userId;
+
+  // Content fields
+  final String? title; // NEW: Title for the thought
   final String originalText;
   final String? aiSummary;
   final String? recordingUrl;
+
+  // Metadata
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  // Organization
   final String? categoryId;
   final List<String> tags;
+
+  // Status flags (NEW)
+  final bool isPinned; // NEW: Pin important thoughts to top
+  final bool isArchived; // NEW: Archive old thoughts
+  final bool isChecklist; // NEW: Is this a checklist/to-do list?
+
+  // Reminders
   final bool hasReminder;
   final String? reminderId;
 
   Thought({
     String? id,
     required this.userId,
+    this.title,
     required this.originalText,
     this.aiSummary,
     this.recordingUrl,
@@ -24,6 +40,9 @@ class Thought {
     DateTime? updatedAt,
     this.categoryId,
     List<String>? tags,
+    this.isPinned = false,
+    this.isArchived = false,
+    this.isChecklist = false,
     this.hasReminder = false,
     this.reminderId,
   })  : id = id ?? const Uuid().v4(),
@@ -36,6 +55,7 @@ class Thought {
     return Thought(
       id: json['id'] as String,
       userId: json['user_id'] as String,
+      title: json['title'] as String?,
       originalText: json['original_text'] as String,
       aiSummary: json['ai_summary'] as String?,
       recordingUrl: json['recording_url'] as String?,
@@ -43,6 +63,9 @@ class Thought {
       updatedAt: DateTime.parse(json['updated_at'] as String),
       categoryId: json['category_id'] as String?,
       tags: (json['tags'] as List<dynamic>?)?.cast<String>() ?? [],
+      isPinned: json['is_pinned'] as bool? ?? false,
+      isArchived: json['is_archived'] as bool? ?? false,
+      isChecklist: json['is_checklist'] as bool? ?? false,
       hasReminder: json['has_reminder'] as bool? ?? false,
       reminderId: json['reminder_id'] as String?,
     );
@@ -53,6 +76,7 @@ class Thought {
     return {
       'id': id,
       'user_id': userId,
+      'title': title,
       'original_text': originalText,
       'ai_summary': aiSummary,
       'recording_url': recordingUrl,
@@ -60,6 +84,9 @@ class Thought {
       'updated_at': updatedAt.toIso8601String(),
       'category_id': categoryId,
       'tags': tags,
+      'is_pinned': isPinned,
+      'is_archived': isArchived,
+      'is_checklist': isChecklist,
       'has_reminder': hasReminder,
       'reminder_id': reminderId,
     };
@@ -69,6 +96,7 @@ class Thought {
   Thought copyWith({
     String? id,
     String? userId,
+    String? title,
     String? originalText,
     String? aiSummary,
     String? recordingUrl,
@@ -76,12 +104,16 @@ class Thought {
     DateTime? updatedAt,
     String? categoryId,
     List<String>? tags,
+    bool? isPinned,
+    bool? isArchived,
+    bool? isChecklist,
     bool? hasReminder,
     String? reminderId,
   }) {
     return Thought(
       id: id ?? this.id,
       userId: userId ?? this.userId,
+      title: title ?? this.title,
       originalText: originalText ?? this.originalText,
       aiSummary: aiSummary ?? this.aiSummary,
       recordingUrl: recordingUrl ?? this.recordingUrl,
@@ -89,8 +121,29 @@ class Thought {
       updatedAt: updatedAt ?? this.updatedAt,
       categoryId: categoryId ?? this.categoryId,
       tags: tags ?? this.tags,
+      isPinned: isPinned ?? this.isPinned,
+      isArchived: isArchived ?? this.isArchived,
+      isChecklist: isChecklist ?? this.isChecklist,
       hasReminder: hasReminder ?? this.hasReminder,
       reminderId: reminderId ?? this.reminderId,
     );
   }
+
+  /// Helper: Get display title (use title if available, otherwise first line of text)
+  String get displayTitle {
+    if (title != null && title!.isNotEmpty) {
+      return title!;
+    }
+    // Use first 50 characters of original text as fallback
+    final firstLine = originalText.split('\n').first;
+    return firstLine.length > 50
+        ? '${firstLine.substring(0, 50)}...'
+        : firstLine;
+  }
+
+  /// Helper: Toggle pin status
+  Thought togglePin() => copyWith(isPinned: !isPinned);
+
+  /// Helper: Toggle archive status
+  Thought toggleArchive() => copyWith(isArchived: !isArchived);
 }

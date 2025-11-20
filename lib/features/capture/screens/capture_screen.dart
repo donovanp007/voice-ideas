@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/thought.dart';
 import '../../../core/services/audio_recorder_service.dart';
 import '../../../core/services/speech_to_text_service.dart';
-import '../../../core/services/ai_service.dart';
+import '../../../core/services/unified_ai_service.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/services/reminder_service.dart';
 import '../widgets/voice_recorder.dart';
@@ -26,7 +26,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
 
   final AudioRecorderService _audioRecorder = AudioRecorderService();
   final SpeechToTextService _speechToText = SpeechToTextService();
-  final AiService _aiService = AiService();
+  final UnifiedAiService _aiService = UnifiedAiService();
   final SupabaseService _supabaseService = SupabaseService();
 
   @override
@@ -165,15 +165,21 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
     });
 
     try {
-      // Analyze with AI
+      // Analyze with AI (OpenAI or Claude based on config)
+      setState(() {
+        _status = 'Analyzing with ${_aiService.providerName}...';
+      });
+
       final analysis = await _aiService.analyzeThought(_textController.text);
 
-      // Create thought
+      // Create thought with NEW fields: title, isChecklist
       final thought = Thought(
         userId: SupabaseService.userId,
+        title: analysis.title,
         originalText: _textController.text,
         aiSummary: analysis.summary,
         tags: analysis.tags,
+        isChecklist: analysis.isChecklist,
         hasReminder: analysis.needsReminder,
       );
 
@@ -184,8 +190,24 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
       // Save to Supabase
       final savedThought = await _supabaseService.saveThought(thought);
 
+      // NEW: Save checklist items if this is a checklist
+      if (analysis.isChecklist && analysis.checklistItems.isNotEmpty) {
+        setState(() {
+          _status = 'Saving checklist items...';
+        });
+
+        await _supabaseService.saveChecklistItems(
+          savedThought.id,
+          analysis.checklistItems,
+        );
+      }
+
       // Create reminder if needed
       if (analysis.needsReminder && analysis.suggestedReminderTime != null) {
+        setState(() {
+          _status = 'Creating reminder...';
+        });
+
         final reminderTime = ReminderService.parseNaturalTime(
           analysis.suggestedReminderTime!,
         );
@@ -203,10 +225,15 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
 
       if (mounted) {
         Navigator.pop(context, true);
+        final message = analysis.isChecklist
+            ? 'Checklist saved with ${analysis.checklistItems.length} items!'
+            : 'Thought saved successfully!';
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Thought saved successfully!'),
+          SnackBar(
+            content: Text(message),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
           ),
         );
       }

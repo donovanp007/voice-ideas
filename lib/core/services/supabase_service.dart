@@ -3,6 +3,7 @@ import '../config/supabase_config.dart';
 import '../models/thought.dart';
 import '../models/category.dart';
 import '../models/reminder.dart';
+import '../models/checklist_item.dart';
 
 /// Service for all Supabase operations
 class SupabaseService {
@@ -59,20 +60,29 @@ class SupabaseService {
   }
 
   /// Get all thoughts for the current user
+  /// NEW: Supports filtering by archived status, pinned items appear first
   Future<List<Thought>> getThoughts({
     String? categoryId,
+    bool includeArchived = false,
     int? limit,
     int? offset,
   }) async {
     var query = client
         .from('thoughts')
         .select()
-        .eq('user_id', userId)
-        .order('created_at', ascending: false);
+        .eq('user_id', userId);
+
+    // Filter out archived thoughts unless explicitly requested
+    if (!includeArchived) {
+      query = query.eq('is_archived', false);
+    }
 
     if (categoryId != null) {
       query = query.eq('category_id', categoryId);
     }
+
+    // Order by pinned status first, then by creation date
+    query = query.order('is_pinned', ascending: false).order('created_at', ascending: false);
 
     if (limit != null) {
       query = query.limit(limit);
@@ -178,5 +188,81 @@ class SupabaseService {
   /// Delete a reminder
   Future<void> deleteReminder(String reminderId) async {
     await client.from('reminders').delete().eq('id', reminderId);
+  }
+
+  // ==================== CHECKLIST OPERATIONS (NEW) ====================
+
+  /// Save checklist items for a thought
+  Future<List<ChecklistItem>> saveChecklistItems(
+      String thoughtId, List<String> items) async {
+    final checklistItems = <ChecklistItem>[];
+
+    for (var i = 0; i < items.length; i++) {
+      final item = ChecklistItem(
+        thoughtId: thoughtId,
+        text: items[i],
+        position: i,
+      );
+
+      final response = await client
+          .from('checklist_items')
+          .insert(item.toJson())
+          .select()
+          .single();
+
+      checklistItems.add(ChecklistItem.fromJson(response));
+    }
+
+    return checklistItems;
+  }
+
+  /// Get checklist items for a thought
+  Future<List<ChecklistItem>> getChecklistItems(String thoughtId) async {
+    final response = await client
+        .from('checklist_items')
+        .select()
+        .eq('thought_id', thoughtId)
+        .order('position', ascending: true);
+
+    return (response as List)
+        .map((json) => ChecklistItem.fromJson(json))
+        .toList();
+  }
+
+  /// Update a checklist item (e.g., toggle completion)
+  Future<ChecklistItem> updateChecklistItem(ChecklistItem item) async {
+    final response = await client
+        .from('checklist_items')
+        .update(item.toJson())
+        .eq('id', item.id)
+        .select()
+        .single();
+
+    return ChecklistItem.fromJson(response);
+  }
+
+  /// Delete a checklist item
+  Future<void> deleteChecklistItem(String itemId) async {
+    await client.from('checklist_items').delete().eq('id', itemId);
+  }
+
+  /// Get completion percentage for a checklist thought
+  Future<int> getChecklistCompletion(String thoughtId) async {
+    final items = await getChecklistItems(thoughtId);
+
+    if (items.isEmpty) return 0;
+
+    final completedCount = items.where((item) => item.isCompleted).length;
+    return ((completedCount / items.length) * 100).round();
+  }
+
+  /// Toggle pin status of a thought
+  Future<Thought> togglePin(Thought thought) async {
+    return await updateThought(thought.togglePin());
+  }
+
+  /// Toggle archive status of a thought
+  Future<Thought> toggleArchive(Thought thought) async {
+    return await updateThought(thought.toggleArchive());
   }
 }

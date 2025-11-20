@@ -3,37 +3,43 @@ import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../config/prompts_config.dart';
 
-/// Service for AI-powered analysis using Claude
-/// Updated to use PromptsConfig for customizable prompts
-class ClaudeAiService {
+/// Service for AI-powered analysis using OpenAI
+/// More affordable alternative to Claude - great for testing!
+class OpenAiService {
   /// Analyze a thought and generate:
+  /// - Title
   /// - Summary
   /// - Suggested category
   /// - Tags
   /// - Whether it needs a reminder
+  /// - Checklist items if applicable
   Future<ThoughtAnalysis> analyzeThought(String text) async {
     final response = await http.post(
-      Uri.parse(ApiConfig.claudeApiUrl),
+      Uri.parse(ApiConfig.openAiApiUrl),
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ApiConfig.claudeApiKey,
-        'anthropic-version': '2023-06-01',
+        'Authorization': 'Bearer ${ApiConfig.openAiApiKey}',
       },
       body: jsonEncode({
-        'model': ApiConfig.claudeModel,
-        'max_tokens': 1024,
+        'model': ApiConfig.openAiModel,
         'messages': [
+          {
+            'role': 'system',
+            'content': PromptsConfig.systemMessage,
+          },
           {
             'role': 'user',
             'content': PromptsConfig.thoughtAnalysisPrompt(text),
           }
         ],
+        'temperature': 0.7,
+        'max_tokens': 1000,
       }),
     );
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      final content = data['content'][0]['text'] as String;
+      final content = data['choices'][0]['message']['content'] as String;
 
       return _parseAnalysisResponse(content);
     } else {
@@ -41,11 +47,10 @@ class ClaudeAiService {
     }
   }
 
-
-  /// Parse Claude's response into a ThoughtAnalysis object
+  /// Parse OpenAI's response into a ThoughtAnalysis object
   ThoughtAnalysis _parseAnalysisResponse(String response) {
     try {
-      // Extract JSON from response (Claude might wrap it in markdown)
+      // Extract JSON from response (OpenAI might wrap it in markdown)
       final jsonStart = response.indexOf('{');
       final jsonEnd = response.lastIndexOf('}') + 1;
       final jsonString = response.substring(jsonStart, jsonEnd);
@@ -59,15 +64,18 @@ class ClaudeAiService {
         tags: (data['tags'] as List<dynamic>).cast<String>(),
         needsReminder: data['needs_reminder'] as bool? ?? false,
         suggestedReminderTime: data['suggested_reminder_time'] as String?,
-        actionItems: (data['action_items'] as List<dynamic>?)?.cast<String>() ?? [],
+        actionItems:
+            (data['action_items'] as List<dynamic>?)?.cast<String>() ?? [],
         isChecklist: data['is_checklist'] as bool? ?? false,
-        checklistItems: (data['checklist_items'] as List<dynamic>?)?.cast<String>() ?? [],
+        checklistItems:
+            (data['checklist_items'] as List<dynamic>?)?.cast<String>() ?? [],
       );
     } catch (e) {
       // Fallback if parsing fails
       return ThoughtAnalysis(
         title: 'Untitled',
-        summary: response.substring(0, response.length > 200 ? 200 : response.length),
+        summary: response.substring(
+            0, response.length > 200 ? 200 : response.length),
         category: 'Other',
         tags: [],
         needsReminder: false,
@@ -81,34 +89,37 @@ class ClaudeAiService {
   /// Batch analyze multiple thoughts for pattern detection
   Future<BatchAnalysis> batchAnalyzeThoughts(List<String> thoughts) async {
     final response = await http.post(
-      Uri.parse(ApiConfig.claudeApiUrl),
+      Uri.parse(ApiConfig.openAiApiUrl),
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ApiConfig.claudeApiKey,
-        'anthropic-version': '2023-06-01',
+        'Authorization': 'Bearer ${ApiConfig.openAiApiKey}',
       },
       body: jsonEncode({
-        'model': ApiConfig.claudeModel,
-        'max_tokens': 2048,
+        'model': ApiConfig.openAiModel,
         'messages': [
+          {
+            'role': 'system',
+            'content': PromptsConfig.systemMessage,
+          },
           {
             'role': 'user',
             'content': PromptsConfig.batchAnalysisPrompt(thoughts),
           }
         ],
+        'temperature': 0.7,
+        'max_tokens': 1500,
       }),
     );
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      final content = data['content'][0]['text'] as String;
+      final content = data['choices'][0]['message']['content'] as String;
 
       return _parseBatchAnalysisResponse(content);
     } else {
       throw Exception('Failed to batch analyze: ${response.body}');
     }
   }
-
 
   BatchAnalysis _parseBatchAnalysisResponse(String response) {
     try {
@@ -120,7 +131,8 @@ class ClaudeAiService {
 
       return BatchAnalysis(
         commonThemes: (data['common_themes'] as List<dynamic>).cast<String>(),
-        suggestedActions: (data['suggested_actions'] as List<dynamic>).cast<String>(),
+        suggestedActions:
+            (data['suggested_actions'] as List<dynamic>).cast<String>(),
         priorityItems: (data['priority_items'] as List<dynamic>).cast<int>(),
         insights: data['insights'] as String,
       );

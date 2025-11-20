@@ -90,6 +90,9 @@ class ThoughtsListScreen extends ConsumerWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      // NEW: Add border for pinned items
+      color: thought.isPinned ? Colors.amber.shade50 : null,
+      elevation: thought.isPinned ? 4 : 1,
       child: InkWell(
         onTap: () {
           Navigator.push(
@@ -105,49 +108,96 @@ class ThoughtsListScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header with date and reminder indicator
+              // Header with date and status indicators
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    dateFormat.format(thought.createdAt),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade600,
-                        ),
-                  ),
-                  if (thought.hasReminder)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade100,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.alarm,
-                            size: 14,
-                            color: Colors.orange.shade700,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Reminder',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.orange.shade700,
-                              fontWeight: FontWeight.w500,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        // NEW: Pin indicator
+                        if (thought.isPinned)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Icon(
+                              Icons.push_pin,
+                              size: 16,
+                              color: Colors.amber.shade700,
                             ),
                           ),
-                        ],
-                      ),
+                        // NEW: Checklist indicator
+                        if (thought.isChecklist)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Icon(
+                              Icons.checklist,
+                              size: 16,
+                              color: Colors.blue.shade700,
+                            ),
+                          ),
+                        Flexible(
+                          child: Text(
+                            dateFormat.format(thought.createdAt),
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.grey.shade600,
+                                ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  // Status badges
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (thought.hasReminder)
+                        Container(
+                          margin: const EdgeInsets.only(left: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.alarm,
+                                size: 14,
+                                color: Colors.orange.shade700,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Reminder',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.orange.shade700,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
+
+              // NEW: Title
+              if (thought.title != null && thought.title!.isNotEmpty) ...[
+                Text(
+                  thought.title!,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 8),
+              ],
 
               // AI Summary (if available)
               if (thought.aiSummary != null) ...[
