@@ -1,0 +1,57 @@
+name: thought_recorder
+description: A voice-first thought capture and organization app powered by AI
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.1.0
+  flutter_animate: ^4.5.0
+
+  # State Management
+  flutter_riverpod: ^2.4.9
+
+  # Supabase
+  supabase_flutter: ^2.0.0
+
+  # Audio Recording
+  record: ^5.0.4
+  path_provider: ^2.1.1
+  permission_handler: ^11.0.1
+
+  # Speech to Text
+  speech_to_text: ^6.5.1
+
+  # HTTP & API
+  http: ^1.1.2
+  dio: ^5.4.0
+
+  # Storage
+  shared_preferences: ^2.2.2
+
+  # Utils
+  uuid: ^4.2.1
+  intl: ^0.18.1
+
+  # Android Reminders
+  android_alarm_manager_plus: ^3.0.4
+  flutter_local_notifications: ^16.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
