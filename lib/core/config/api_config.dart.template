@@ -1,0 +1,14 @@
+/// API configuration for external services
+///
+/// SETUP INSTRUCTIONS:
+/// 1. Copy this file and rename it to 'api_config.dart'
+/// 2. Get a Claude API key from https://console.anthropic.com/
+/// 3. Replace YOUR_CLAUDE_API_KEY below
+///
+/// Example:
+/// static const String claudeApiKey = 'sk-ant-api03-xxxxx';
+class ApiConfig {
+  static const String claudeApiKey = 'YOUR_CLAUDE_API_KEY';
+  static const String claudeApiUrl = 'https://api.anthropic.com/v1/messages';
+  static const String claudeModel = 'claude-3-5-sonnet-20241022';
+}
