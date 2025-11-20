@@ -161,73 +161,128 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
 
     setState(() {
       _isProcessing = true;
-      _status = 'Analyzing with AI...';
+      _status = 'Saving thought...';
     });
 
     try {
-      // Analyze with AI (OpenAI or Claude based on config)
-      setState(() {
-        _status = 'Analyzing with ${_aiService.providerName}...';
-      });
+      // Try AI analysis, but don't fail if it doesn't work
+      String? title;
+      String? aiSummary;
+      List<String> tags = [];
+      bool isChecklist = false;
+      List<String> checklistItems = [];
+      bool needsReminder = false;
+      String? suggestedReminderTime;
 
-      final analysis = await _aiService.analyzeThought(_textController.text);
+      try {
+        setState(() {
+          _status = 'Analyzing with ${_aiService.providerName}...';
+        });
 
-      // Create thought with NEW fields: title, isChecklist
+        final analysis = await _aiService.analyzeThought(_textController.text);
+
+        title = analysis.title;
+        aiSummary = analysis.summary;
+        tags = analysis.tags;
+        isChecklist = analysis.isChecklist;
+        checklistItems = analysis.checklistItems;
+        needsReminder = analysis.needsReminder;
+        suggestedReminderTime = analysis.suggestedReminderTime;
+
+        setState(() {
+          _status = 'AI analysis complete!';
+        });
+      } catch (aiError) {
+        // AI failed, but continue saving without it
+        print('AI analysis failed: $aiError');
+        setState(() {
+          _status = 'Saving without AI (check API keys)...';
+        });
+
+        // Basic checklist detection as fallback
+        final text = _textController.text.toLowerCase();
+        if (text.contains('todo') ||
+            text.contains('checklist') ||
+            text.contains('shopping list') ||
+            text.split('\n').where((line) => line.trim().startsWith('-')).length > 1) {
+          isChecklist = true;
+          // Extract items from lines starting with -
+          checklistItems = _textController.text
+              .split('\n')
+              .where((line) => line.trim().startsWith('-'))
+              .map((line) => line.trim().substring(1).trim())
+              .where((item) => item.isNotEmpty)
+              .toList();
+        }
+      }
+
+      // Create thought (with or without AI data)
       final thought = Thought(
         userId: SupabaseService.userId,
-        title: analysis.title,
+        title: title,
         originalText: _textController.text,
-        aiSummary: analysis.summary,
-        tags: analysis.tags,
-        isChecklist: analysis.isChecklist,
-        hasReminder: analysis.needsReminder,
+        aiSummary: aiSummary,
+        tags: tags,
+        isChecklist: isChecklist,
+        hasReminder: needsReminder,
       );
 
       setState(() {
-        _status = 'Saving thought...';
+        _status = 'Saving to database...';
       });
 
       // Save to Supabase
       final savedThought = await _supabaseService.saveThought(thought);
 
-      // NEW: Save checklist items if this is a checklist
-      if (analysis.isChecklist && analysis.checklistItems.isNotEmpty) {
+      // Save checklist items if detected
+      if (isChecklist && checklistItems.isNotEmpty) {
         setState(() {
           _status = 'Saving checklist items...';
         });
 
         await _supabaseService.saveChecklistItems(
           savedThought.id,
-          analysis.checklistItems,
+          checklistItems,
         );
       }
 
-      // Create reminder if needed
-      if (analysis.needsReminder && analysis.suggestedReminderTime != null) {
+      // Create reminder if needed (only if AI detected it)
+      if (needsReminder && suggestedReminderTime != null) {
         setState(() {
           _status = 'Creating reminder...';
         });
 
-        final reminderTime = ReminderService.parseNaturalTime(
-          analysis.suggestedReminderTime!,
-        );
-
-        if (reminderTime != null) {
-          final reminderService = ReminderService();
-          await reminderService.scheduleReminder(
-            title: 'Thought Reminder',
-            body: analysis.summary,
-            scheduledTime: reminderTime,
-            payload: savedThought.id,
+        try {
+          final reminderTime = ReminderService.parseNaturalTime(
+            suggestedReminderTime,
           );
+
+          if (reminderTime != null) {
+            final reminderService = ReminderService();
+            await reminderService.scheduleReminder(
+              title: 'Thought Reminder',
+              body: aiSummary ?? _textController.text.split('\n').first,
+              scheduledTime: reminderTime,
+              payload: savedThought.id,
+            );
+          }
+        } catch (reminderError) {
+          print('Reminder creation failed: $reminderError');
+          // Continue even if reminder fails
         }
       }
 
       if (mounted) {
         Navigator.pop(context, true);
-        final message = analysis.isChecklist
-            ? 'Checklist saved with ${analysis.checklistItems.length} items!'
-            : 'Thought saved successfully!';
+
+        String message;
+        if (isChecklist && checklistItems.isNotEmpty) {
+          message = 'Checklist saved with ${checklistItems.length} items!';
+        } else if (aiSummary == null) {
+          message = 'Thought saved! (Configure AI keys for analysis)';
+        } else {
+          message = 'Thought saved successfully!';
+        }
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -240,7 +295,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving thought: $e')),
+          SnackBar(
+            content: Text('Error saving: $e\n\nCheck Supabase configuration!'),
+            duration: const Duration(seconds: 4),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {

@@ -1,8 +1,34 @@
 # 🚀 START HERE - 5 Minute Setup!
 
-## Quick Setup (Test in 5 Minutes!)
+## ⚡ QUICK TEST (1 Minute - No Setup!)
 
-### Step 1: Database (2 minutes)
+**Want to test the app immediately without any setup?**
+
+1. Copy the example config files:
+   ```bash
+   cp lib/core/config/supabase_config.dart.example lib/core/config/supabase_config.dart
+   cp lib/core/config/api_config.dart.example lib/core/config/api_config.dart
+   ```
+
+2. Run the app:
+   ```bash
+   flutter pub get
+   flutter run
+   ```
+
+3. Try typing text (not voice yet):
+   - Tap mic FAB
+   - Switch to "Text" mode
+   - Type: "Test note"
+   - Tap Save
+
+**Result:** You'll see "Check Supabase configuration!" error - this is NORMAL! You need to set up Supabase first (see below).
+
+---
+
+## 📝 Full Setup (5-10 Minutes)
+
+### Step 1: Database Setup (2 minutes)
 1. Go to [supabase.com](https://supabase.com)
 2. Sign in or create account
 3. Create new project (any name, wait 2 min)
@@ -26,9 +52,18 @@
 4. Copy the key (starts with `sk-`)
 5. Add $5 credit to your account
 
-### Step 3: Configure App (1 minute)
+### Step 3: Create Config Files (IMPORTANT!)
 
-**A) Supabase Config:**
+**A) Create Config Files from Examples:**
+
+```bash
+# Copy the example files to create your config files
+cp lib/core/config/supabase_config.dart.example lib/core/config/supabase_config.dart
+cp lib/core/config/api_config.dart.example lib/core/config/api_config.dart
+```
+
+**B) Add Supabase Credentials:**
+
 Open: `lib/core/config/supabase_config.dart`
 
 Change:
@@ -43,7 +78,8 @@ static const String supabaseUrl = 'https://xxxxx.supabase.co';
 static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
 ```
 
-**B) OpenAI Config:**
+**C) Add OpenAI Key (Optional for now):**
+
 Open: `lib/core/config/api_config.dart`
 
 Change:
@@ -56,17 +92,64 @@ To your actual key:
 static const String openAiApiKey = 'sk-proj-xxxxx';
 ```
 
-**That's it! The provider is already set to OpenAI (cheaper).**
+**NOTE:** You can test WITHOUT OpenAI first! The app will work but won't have AI features.
 
-### Step 4: Run App!
+### Step 4: Install Dependencies & Run!
+
 ```bash
+# Install packages
 flutter pub get
+
+# Run the app
 flutter run
 ```
 
+**If you see compilation errors:**
+- Make sure you created the config files (step 3A)
+- Check there are no syntax errors in your config files
+- The placeholder values are OK for now!
+
 ---
 
-## ✅ Your First Test
+## ✅ Your First Tests
+
+### Test 1: Basic Text Note (Works WITHOUT AI!)
+
+1. Open app
+2. Tap purple microphone FAB
+3. Switch to **"Text"** mode
+4. Type: **"This is my first test note"**
+5. Tap **"Save"**
+
+**What should happen:**
+- ✅ Note saves successfully
+- ✅ Message: "Thought saved! (Configure AI keys for analysis)"
+- ✅ Note appears on home screen
+- ❌ No AI summary (you haven't configured AI yet)
+
+**If it fails:** Check your Supabase configuration!
+
+### Test 2: Checklist (Basic Detection, No AI Needed!)
+
+1. Tap mic FAB → Text mode
+2. Type:
+```
+Todo:
+- Buy milk
+- Call mom
+- Finish report
+```
+3. Tap Save
+
+**What should happen:**
+- ✅ Saves as checklist (even without AI!)
+- ✅ Creates 3 checkbox items
+- ✅ Shows checklist icon
+- ✅ Tap card → See checkboxes!
+
+---
+
+## 🤖 Testing With AI (After Adding OpenAI Key)
 
 ### Test Voice To-Do List:
 1. Open app

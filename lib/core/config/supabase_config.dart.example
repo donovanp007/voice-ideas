@@ -1,0 +1,24 @@
+/// Supabase configuration
+///
+/// IMPORTANT: Copy this file and save as 'supabase_config.dart' (remove .example)
+/// Then replace the values below with your actual Supabase credentials.
+///
+/// Setup Instructions:
+/// 1. Go to https://supabase.com/dashboard
+/// 2. Select your project (or create one)
+/// 3. Go to Settings > API
+/// 4. Copy the URL and anon key below
+///
+/// Example values:
+/// static const String supabaseUrl = 'https://xxxxxxxxxxxxx.supabase.co';
+/// static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+///
+class SupabaseConfig {
+  // Replace these with your actual values!
+  static const String supabaseUrl = 'YOUR_SUPABASE_URL';
+  static const String supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+
+  // Don't change this - it checks if you've configured the app
+  static bool get isConfigured =>
+      !supabaseUrl.contains('YOUR_') && !supabaseAnonKey.contains('YOUR_');
+}

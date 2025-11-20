@@ -1,0 +1,60 @@
+/// API configuration for AI services
+///
+/// IMPORTANT: Copy this file and save as 'api_config.dart' (remove .example)
+/// Then replace the values below with your actual API keys.
+///
+/// RECOMMENDED FOR TESTING: Use OpenAI GPT-3.5 (7.5x cheaper than Claude!)
+///
+/// OpenAI Setup:
+/// 1. Go to https://platform.openai.com/api-keys
+/// 2. Create an API key
+/// 3. Add at least $5 credit to your account
+/// 4. Replace openAiApiKey below
+///
+/// Claude Setup (optional):
+/// 1. Go to https://console.anthropic.com/
+/// 2. Create an API key
+/// 3. Replace claudeApiKey below
+///
+class ApiConfig {
+  // ==================== AI PROVIDER SELECTION ====================
+  /// Choose which AI to use: claude or openai
+  /// OpenAI is recommended for testing (much cheaper!)
+  ///
+  /// Change this to switch providers:
+  /// - AiProvider.openai (recommended, cheaper)
+  /// - AiProvider.claude (more powerful, expensive)
+  static const AiProvider aiProvider = AiProvider.openai;
+
+  // ==================== OPENAI CONFIGURATION ====================
+  /// Replace with your actual OpenAI API key
+  /// Get it from: https://platform.openai.com/api-keys
+  static const String openAiApiKey = 'YOUR_OPENAI_API_KEY';
+  static const String openAiApiUrl = 'https://api.openai.com/v1/chat/completions';
+
+  /// OpenAI Model Options:
+  /// - 'gpt-4' - Most powerful, costs ~$0.03 per thought
+  /// - 'gpt-4-turbo' - Fast and powerful, costs ~$0.01 per thought
+  /// - 'gpt-3.5-turbo' - Fast and cheap, costs ~$0.002 per thought (RECOMMENDED!)
+  static const String openAiModel = 'gpt-3.5-turbo';
+
+  // ==================== CLAUDE CONFIGURATION ====================
+  /// Replace with your actual Claude API key
+  /// Get it from: https://console.anthropic.com/
+  static const String claudeApiKey = 'YOUR_CLAUDE_API_KEY';
+  static const String claudeApiUrl = 'https://api.anthropic.com/v1/messages';
+  static const String claudeModel = 'claude-3-5-sonnet-20241022';
+
+  // Don't change this - it checks if you've configured AI
+  static bool get isOpenAiConfigured => !openAiApiKey.contains('YOUR_');
+  static bool get isClaudeConfigured => !claudeApiKey.contains('YOUR_');
+  static bool get isAiConfigured =>
+      (aiProvider == AiProvider.openai && isOpenAiConfigured) ||
+      (aiProvider == AiProvider.claude && isClaudeConfigured);
+}
+
+/// AI Provider enum
+enum AiProvider {
+  claude,
+  openai,
+}
