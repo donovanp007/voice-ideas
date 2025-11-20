@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/models/thought.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../shared/widgets/checklist_widget.dart';
 
 class ThoughtDetailScreen extends StatefulWidget {
   final Thought thought;
@@ -31,8 +32,18 @@ class _ThoughtDetailScreenState extends State<ThoughtDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Thought Details'),
+        title: Text(_thought.isChecklist ? 'Checklist' : 'Thought Details'),
         actions: [
+          // Pin/Unpin button
+          IconButton(
+            icon: Icon(
+              _thought.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+              color: _thought.isPinned ? Colors.amber.shade700 : null,
+            ),
+            onPressed: _togglePin,
+            tooltip: _thought.isPinned ? 'Unpin' : 'Pin to top',
+          ),
+          // Delete button
           IconButton(
             icon: const Icon(Icons.delete_outline),
             onPressed: _confirmDelete,
@@ -67,6 +78,17 @@ class _ThoughtDetailScreenState extends State<ThoughtDetailScreen> {
             ),
 
             const SizedBox(height: 16),
+
+            // Title (if available)
+            if (_thought.title != null && _thought.title!.isNotEmpty) ...[
+              Text(
+                _thought.title!,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // AI Summary
             if (_thought.aiSummary != null) ...[
@@ -132,6 +154,12 @@ class _ThoughtDetailScreenState extends State<ThoughtDetailScreen> {
             ),
 
             const SizedBox(height: 24),
+
+            // Checklist Items (NEW!)
+            if (_thought.isChecklist) ...[
+              ChecklistWidget(thoughtId: _thought.id),
+              const SizedBox(height: 24),
+            ],
 
             // Tags
             if (_thought.tags.isNotEmpty) ...[
@@ -207,6 +235,34 @@ class _ThoughtDetailScreenState extends State<ThoughtDetailScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _togglePin() async {
+    try {
+      final updatedThought = await _supabaseService.togglePin(_thought);
+
+      setState(() {
+        _thought = updatedThought;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _thought.isPinned ? 'Pinned to top!' : 'Unpinned',
+            ),
+            duration: const Duration(seconds: 1),
+            backgroundColor: _thought.isPinned ? Colors.amber.shade700 : null,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _confirmDelete() async {

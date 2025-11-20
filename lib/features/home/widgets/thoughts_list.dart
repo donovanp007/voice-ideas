@@ -232,13 +232,49 @@ class ThoughtsListScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
               ],
 
-              // Original text
-              Text(
-                thought.originalText,
-                style: Theme.of(context).textTheme.bodyMedium,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
+              // Original text (or checklist preview)
+              if (!thought.isChecklist)
+                Text(
+                  thought.originalText,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                )
+              else
+                // Checklist preview
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.checklist_rtl,
+                        color: Colors.blue.shade700,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Tap to view checklist items',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.blue.shade900,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: 14,
+                        color: Colors.blue.shade700,
+                      ),
+                    ],
+                  ),
+                ),
 
               // Tags
               if (thought.tags.isNotEmpty) ...[
