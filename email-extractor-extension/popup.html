@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Extractor</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📧 Email Extractor</h1>
+      <p class="subtitle">Extract staff emails instantly</p>
+    </header>
+
+    <div class="stats">
+      <div class="stat-item">
+        <span class="stat-number" id="emailCount">0</span>
+        <span class="stat-label">Emails Found</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-number" id="uniqueCount">0</span>
+        <span class="stat-label">Unique</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="extractBtn" class="btn btn-primary">
+        <span class="btn-icon">🔍</span>
+        Extract Emails
+      </button>
+      <button id="deepScanBtn" class="btn btn-secondary">
+        <span class="btn-icon">🔬</span>
+        Deep Scan
+      </button>
+    </div>
+
+    <div class="results-container" id="resultsContainer" style="display: none;">
+      <div class="results-header">
+        <h3>Extracted Emails</h3>
+        <div class="results-actions">
+          <button id="copyAllBtn" class="btn-small" title="Copy All">📋</button>
+          <button id="exportCsvBtn" class="btn-small" title="Export CSV">📥</button>
+          <button id="clearBtn" class="btn-small" title="Clear">🗑️</button>
+        </div>
+      </div>
+      <div class="email-list" id="emailList"></div>
+    </div>
+
+    <div class="filters" id="filtersSection" style="display: none;">
+      <h4>Filter by Domain</h4>
+      <div class="filter-chips" id="domainFilters"></div>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <footer>
+      <p>Click extract or use <kbd>Alt+E</kbd> on any page</p>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
