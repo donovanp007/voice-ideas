@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../core/theme/app_theme.dart';
 
 class TextInputWidget extends StatelessWidget {
   final TextEditingController controller;
@@ -16,54 +18,134 @@ class TextInputWidget extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
+          // Text input field
           Expanded(
-            child: TextField(
-              controller: controller,
-              decoration: InputDecoration(
-                hintText: 'Type your thought here...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                filled: true,
-                fillColor: Colors.grey.shade50,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: AppTheme.softShadow,
               ),
-              maxLines: null,
-              expands: true,
-              textAlignVertical: TextAlignVertical.top,
-              style: const TextStyle(fontSize: 16),
-              autofocus: true,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: TextField(
+                  controller: controller,
+                  decoration: InputDecoration(
+                    hintText: 'Type your thought here...\n\nTip: Start with "Todo:" for automatic checklist detection',
+                    hintStyle: GoogleFonts.inter(
+                      fontSize: 16,
+                      color: Colors.grey.shade400,
+                      height: 1.5,
+                    ),
+                    border: InputBorder.none,
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.all(24),
+                  ),
+                  maxLines: null,
+                  expands: true,
+                  textAlignVertical: TextAlignVertical.top,
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    color: const Color(0xFF1E293B),
+                    height: 1.6,
+                  ),
+                  autofocus: true,
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 16),
+
+          const SizedBox(height: 20),
+
+          // Save button
           SizedBox(
             width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: onSubmit,
-              icon: const Icon(Icons.check),
-              label: const Text('Save Thought'),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.all(16),
+            child: GestureDetector(
+              onTap: onSubmit,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                decoration: BoxDecoration(
+                  gradient: AppTheme.primaryGradient,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: AppTheme.glowShadow,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.check_rounded,
+                        size: 18,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Save Thought',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
+
           const SizedBox(height: 16),
+
+          // AI info card
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(12),
+              color: AppTheme.primaryStart.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.primaryStart.withOpacity(0.15)),
             ),
             child: Row(
               children: [
-                Icon(Icons.auto_awesome, color: Colors.blue.shade700),
-                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 14),
                 Expanded(
-                  child: Text(
-                    'AI will automatically organize and summarize your thought',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.blue.shade900,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'AI-Powered Organization',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF334155),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Auto-categorize, summarize & detect tasks',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

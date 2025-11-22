@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/thought.dart';
 import '../../../core/services/audio_recorder_service.dart';
 import '../../../core/services/speech_to_text_service.dart';
 import '../../../core/services/unified_ai_service.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/services/reminder_service.dart';
+import '../../../core/theme/app_theme.dart';
 import '../widgets/voice_recorder.dart';
 import '../widgets/text_input.dart';
 
@@ -18,7 +21,8 @@ class CaptureScreen extends ConsumerStatefulWidget {
   ConsumerState<CaptureScreen> createState() => _CaptureScreenState();
 }
 
-class _CaptureScreenState extends ConsumerState<CaptureScreen> {
+class _CaptureScreenState extends ConsumerState<CaptureScreen>
+    with SingleTickerProviderStateMixin {
   CaptureMode _captureMode = CaptureMode.voice;
   final TextEditingController _textController = TextEditingController();
   bool _isProcessing = false;
@@ -29,10 +33,22 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
   final UnifiedAiService _aiService = UnifiedAiService();
   final SupabaseService _supabaseService = SupabaseService();
 
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
   @override
   void initState() {
     super.initState();
     _initializeSpeechToText();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOut,
+    );
+    _animationController.forward();
   }
 
   Future<void> _initializeSpeechToText() async {
@@ -41,7 +57,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Speech recognition not available: $e')),
+          SnackBar(
+            content: Text('Speech recognition not available: $e'),
+            backgroundColor: AppTheme.error,
+          ),
         );
       }
     }
@@ -51,94 +70,298 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
   void dispose() {
     _textController.dispose();
     _audioRecorder.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Capture Thought'),
-        actions: [
-          if (_textController.text.isNotEmpty)
-            TextButton(
-              onPressed: _isProcessing ? null : _saveThought,
-              child: _isProcessing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save'),
-            ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Mode Toggle
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SegmentedButton<CaptureMode>(
-              segments: const [
-                ButtonSegment(
-                  value: CaptureMode.voice,
-                  label: Text('Voice'),
-                  icon: Icon(Icons.mic),
-                ),
-                ButtonSegment(
-                  value: CaptureMode.text,
-                  label: Text('Text'),
-                  icon: Icon(Icons.keyboard),
-                ),
-              ],
-              selected: {_captureMode},
-              onSelectionChanged: (Set<CaptureMode> newSelection) {
-                setState(() {
-                  _captureMode = newSelection.first;
-                });
-              },
-            ),
-          ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: AppTheme.backgroundLight,
+        body: Column(
+          children: [
+            // Beautiful gradient header
+            _buildHeader(context),
 
-          // Status indicator
-          if (_status.isNotEmpty)
+            // Mode Toggle
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+              child: _buildModeToggle(),
+            ),
+
+            // Status indicator
+            if (_status.isNotEmpty)
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: _buildStatusCard(),
                 ),
-                child: Row(
+              ),
+
+            const SizedBox(height: 8),
+
+            // Capture interface
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: _captureMode == CaptureMode.voice
+                    ? VoiceRecorderWidget(
+                        key: const ValueKey('voice'),
+                        audioRecorder: _audioRecorder,
+                        speechToText: _speechToText,
+                        onTranscriptionComplete: _handleTranscription,
+                        onStatusChanged: (status) {
+                          setState(() {
+                            _status = status;
+                          });
+                        },
+                      )
+                    : TextInputWidget(
+                        key: const ValueKey('text'),
+                        controller: _textController,
+                        onSubmit: _saveThought,
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: AppTheme.primaryGradient,
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 16, 24),
+          child: Row(
+            children: [
+              IconButton(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.info_outline, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(_status)),
+                    Text(
+                      'Capture Thought',
+                      style: GoogleFonts.inter(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    Text(
+                      'Voice or type your idea',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withOpacity(0.8),
+                      ),
+                    ),
                   ],
                 ),
               ),
+              if (_textController.text.isNotEmpty)
+                _buildSaveButton(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSaveButton() {
+    return GestureDetector(
+      onTap: _isProcessing ? null : _saveThought,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-
-          const SizedBox(height: 16),
-
-          // Capture interface
-          Expanded(
-            child: _captureMode == CaptureMode.voice
-                ? VoiceRecorderWidget(
-                    audioRecorder: _audioRecorder,
-                    speechToText: _speechToText,
-                    onTranscriptionComplete: _handleTranscription,
-                    onStatusChanged: (status) {
-                      setState(() {
-                        _status = status;
-                      });
-                    },
-                  )
-                : TextInputWidget(
-                    controller: _textController,
-                    onSubmit: _saveThought,
+          ],
+        ),
+        child: _isProcessing
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppTheme.primaryStart,
+                ),
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.check_rounded,
+                    size: 18,
+                    color: AppTheme.primaryStart,
                   ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Save',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryStart,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _buildModeToggle() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildToggleButton(
+              mode: CaptureMode.voice,
+              icon: Icons.mic_rounded,
+              label: 'Voice',
+            ),
+          ),
+          Expanded(
+            child: _buildToggleButton(
+              mode: CaptureMode.text,
+              icon: Icons.keyboard_rounded,
+              label: 'Text',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToggleButton({
+    required CaptureMode mode,
+    required IconData icon,
+    required String label,
+  }) {
+    final isSelected = _captureMode == mode;
+    return GestureDetector(
+      onTap: () {
+        setState(() => _captureMode = mode);
+        HapticFeedback.lightImpact();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: isSelected ? AppTheme.primaryStart : Colors.grey.shade500,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? AppTheme.primaryStart : Colors.grey.shade500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusCard() {
+    Color statusColor = AppTheme.info;
+    IconData statusIcon = Icons.info_outline_rounded;
+
+    if (_status.toLowerCase().contains('error')) {
+      statusColor = AppTheme.error;
+      statusIcon = Icons.error_outline_rounded;
+    } else if (_status.toLowerCase().contains('complete') ||
+        _status.toLowerCase().contains('success')) {
+      statusColor = AppTheme.success;
+      statusIcon = Icons.check_circle_outline_rounded;
+    } else if (_status.toLowerCase().contains('analyzing')) {
+      statusColor = AppTheme.primaryStart;
+      statusIcon = Icons.auto_awesome;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: statusColor.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(statusIcon, size: 18, color: statusColor),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _status,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: statusColor,
+              ),
+            ),
           ),
         ],
       ),
@@ -154,7 +377,13 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
   Future<void> _saveThought() async {
     if (_textController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter some text')),
+        SnackBar(
+          content: const Text('Please enter some text'),
+          backgroundColor: AppTheme.error,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
       return;
     }
@@ -286,9 +515,29 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(message),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
+            content: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Text(message)),
+              ],
+            ),
+            backgroundColor: AppTheme.success,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -298,7 +547,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
           SnackBar(
             content: Text('Error saving: $e\n\nCheck Supabase configuration!'),
             duration: const Duration(seconds: 4),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.error,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }

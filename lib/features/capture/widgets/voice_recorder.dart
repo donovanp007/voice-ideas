@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
+import 'dart:math' as math;
 import '../../../core/services/audio_recorder_service.dart';
 import '../../../core/services/speech_to_text_service.dart';
+import '../../../core/theme/app_theme.dart';
 
 class VoiceRecorderWidget extends StatefulWidget {
   final AudioRecorderService audioRecorder;
@@ -22,7 +25,8 @@ class VoiceRecorderWidget extends StatefulWidget {
   State<VoiceRecorderWidget> createState() => _VoiceRecorderWidgetState();
 }
 
-class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget> {
+class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
+    with TickerProviderStateMixin {
   bool _isRecording = false;
   bool _isListening = false;
   String _partialTranscription = '';
@@ -30,9 +34,35 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget> {
   Duration _recordingDuration = Duration.zero;
   Timer? _durationTimer;
 
+  late AnimationController _pulseController;
+  late AnimationController _waveController;
+  late Animation<double> _pulseAnimation;
+  late Animation<double> _waveAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    _waveController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    );
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+    _waveAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _waveController, curve: Curves.easeOut),
+    );
+  }
+
   @override
   void dispose() {
     _durationTimer?.cancel();
+    _pulseController.dispose();
+    _waveController.dispose();
     super.dispose();
   }
 
@@ -43,142 +73,309 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Animated microphone icon
-          GestureDetector(
-            onTap: _isRecording ? _stopRecording : _startRecording,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _isRecording
-                    ? Colors.red.shade100
-                    : Colors.purple.shade100,
-                boxShadow: [
-                  if (_isRecording)
-                    BoxShadow(
-                      color: Colors.red.withOpacity(0.3),
-                      blurRadius: 40,
-                      spreadRadius: 10,
-                    ),
-                ],
-              ),
-              child: Icon(
-                _isRecording ? Icons.stop : Icons.mic,
-                size: 80,
-                color: _isRecording ? Colors.red : Colors.purple,
-              ),
-            ).animate(onPlay: (controller) {
-              if (_isRecording) {
-                controller.repeat();
-              }
-            }).scale(
-              duration: 1000.ms,
-              begin: const Offset(1, 1),
-              end: const Offset(1.1, 1.1),
-            ),
-          ),
+          // Animated microphone button
+          _buildMicrophoneButton(),
 
           const SizedBox(height: 32),
 
           // Recording duration
-          if (_isRecording)
-            Text(
-              _formatDuration(_recordingDuration),
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    fontFeatures: [const FontFeature.tabularFigures()],
-                  ),
-            ),
+          AnimatedOpacity(
+            opacity: _isRecording ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 300),
+            child: _buildDurationDisplay(),
+          ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
           // Status text
-          Text(
-            _isRecording
-                ? 'Recording... Tap to stop'
-                : 'Tap microphone to start recording',
-            style: Theme.of(context).textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
+          _buildStatusText(),
 
           const SizedBox(height: 32),
 
           // Transcription preview
-          if (_partialTranscription.isNotEmpty || _finalTranscription.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              constraints: const BoxConstraints(maxHeight: 200),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.transcribe,
-                          size: 18,
-                          color: Colors.grey.shade700,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Transcription',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    if (_finalTranscription.isNotEmpty)
-                      Text(
-                        _finalTranscription,
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                    if (_partialTranscription.isNotEmpty)
-                      Text(
-                        _partialTranscription,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey.shade600,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-
-          const Spacer(),
+          Expanded(
+            child: _buildTranscriptionPreview(),
+          ),
 
           // Quick tips
-          if (!_isRecording)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  Icon(Icons.tips_and_updates, color: Colors.blue.shade700),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Speak naturally. The app will transcribe and organize your thoughts automatically.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.blue.shade900,
+          if (!_isRecording) _buildTipsCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMicrophoneButton() {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        _isRecording ? _stopRecording() : _startRecording();
+      },
+      child: AnimatedBuilder(
+        animation: _pulseAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _isRecording ? _pulseAnimation.value : 1.0,
+            child: child,
+          );
+        },
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Outer glow ring (when recording)
+            if (_isRecording)
+              AnimatedBuilder(
+                animation: _waveAnimation,
+                builder: (context, _) {
+                  return Container(
+                    width: 200 + (60 * _waveAnimation.value),
+                    height: 200 + (60 * _waveAnimation.value),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppTheme.error.withOpacity(0.3 * (1 - _waveAnimation.value)),
+                        width: 3,
+                      ),
                     ),
+                  );
+                },
+              ),
+            // Second wave ring
+            if (_isRecording)
+              AnimatedBuilder(
+                animation: _waveAnimation,
+                builder: (context, _) {
+                  final offset = (_waveAnimation.value + 0.3) % 1.0;
+                  return Container(
+                    width: 200 + (60 * offset),
+                    height: 200 + (60 * offset),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppTheme.error.withOpacity(0.2 * (1 - offset)),
+                        width: 2,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            // Main button
+            Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: _isRecording
+                    ? LinearGradient(
+                        colors: [
+                          AppTheme.error,
+                          AppTheme.error.withRed(230),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : AppTheme.primaryGradient,
+                boxShadow: [
+                  BoxShadow(
+                    color: (_isRecording ? AppTheme.error : AppTheme.primaryStart)
+                        .withOpacity(0.4),
+                    blurRadius: 32,
+                    offset: const Offset(0, 12),
+                    spreadRadius: -4,
                   ),
                 ],
               ),
+              child: Icon(
+                _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
+                size: 72,
+                color: Colors.white,
+              ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDurationDisplay() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.error.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: AppTheme.error.withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: AppTheme.error,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.error.withOpacity(0.5),
+                  blurRadius: 8,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            _formatDuration(_recordingDuration),
+            style: GoogleFonts.inter(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.error,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusText() {
+    return Column(
+      children: [
+        Text(
+          _isRecording ? 'Recording...' : 'Tap to start',
+          style: GoogleFonts.inter(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF1E293B),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _isRecording
+              ? 'Tap the button to stop'
+              : 'Share your thoughts freely',
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            color: Colors.grey.shade600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTranscriptionPreview() {
+    if (_partialTranscription.isEmpty && _finalTranscription.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppTheme.softShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: AppTheme.primaryGradient,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.transcribe,
+                  size: 16,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Live Transcription',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF334155),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_finalTranscription.isNotEmpty)
+                    Text(
+                      _finalTranscription,
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        color: const Color(0xFF1E293B),
+                        height: 1.5,
+                      ),
+                    ),
+                  if (_partialTranscription.isNotEmpty)
+                    Text(
+                      _partialTranscription,
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        color: Colors.grey.shade500,
+                        fontStyle: FontStyle.italic,
+                        height: 1.5,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTipsCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryStart.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.primaryStart.withOpacity(0.15)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.lightbulb_outline_rounded,
+                color: AppTheme.primaryStart,
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Pro Tip',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.primaryStart,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Speak naturally. AI will automatically organize, categorize, and create action items from your thoughts.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: const Color(0xFF475569),
+              height: 1.5,
+            ),
+          ),
         ],
       ),
     );
@@ -187,6 +384,10 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget> {
   Future<void> _startRecording() async {
     try {
       widget.onStatusChanged('Starting recording...');
+
+      // Start animations
+      _pulseController.repeat(reverse: true);
+      _waveController.repeat();
 
       // Start speech recognition
       await widget.speechToText.startListening(
@@ -224,7 +425,10 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget> {
     } catch (e) {
       widget.onStatusChanged('Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to start recording: $e')),
+        SnackBar(
+          content: Text('Failed to start recording: $e'),
+          backgroundColor: AppTheme.error,
+        ),
       );
     }
   }
@@ -234,6 +438,10 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget> {
       widget.onStatusChanged('Stopping recording...');
 
       _durationTimer?.cancel();
+      _pulseController.stop();
+      _pulseController.reset();
+      _waveController.stop();
+      _waveController.reset();
 
       // Stop speech recognition
       await widget.speechToText.stopListening();
@@ -248,14 +456,16 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget> {
 
       widget.onStatusChanged('Recording complete!');
 
-      // TODO: Upload audio to Supabase if needed
       if (audioPath != null) {
         print('Audio saved to: $audioPath');
       }
     } catch (e) {
       widget.onStatusChanged('Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to stop recording: $e')),
+        SnackBar(
+          content: Text('Failed to stop recording: $e'),
+          backgroundColor: AppTheme.error,
+        ),
       );
     }
   }
