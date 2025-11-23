@@ -554,6 +554,18 @@ kbd {
   font-weight: 700;
 }
 
+.bulk-export-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.bulk-export-actions .btn {
+  flex: 1;
+  font-size: 12px;
+  padding: 10px;
+}
+
 /* History Section */
 .history-section {
   min-height: 200px;

@@ -112,10 +112,16 @@
           <div class="bulk-stats">
             <span id="bulkTotalEmails">0</span> emails from <span id="bulkPagesScanned">0</span> pages
           </div>
-          <button id="exportBulkBtn" class="btn btn-secondary">
-            <span class="btn-icon">📊</span>
-            Export All to Sheets
-          </button>
+          <div class="bulk-export-actions">
+            <button id="exportBulkCsvBtn" class="btn btn-primary">
+              <span class="btn-icon">📥</span>
+              Export CSV
+            </button>
+            <button id="exportBulkBtn" class="btn btn-secondary" title="Configure in Settings first">
+              <span class="btn-icon">📊</span>
+              Sheets (optional)
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -38,41 +38,20 @@
   }
 
   /**
-   * Check if current page is likely a school staff page
+   * Validate email address
    */
-  function detectStaffPage() {
-    const url = window.location.href.toLowerCase();
-    const title = document.title.toLowerCase();
-    const h1 = document.querySelector('h1')?.textContent?.toLowerCase() || '';
+  function isValidEmail(email) {
+    if (!email || email.length < 5) return false;
+    if (!email.includes('@') || !email.includes('.')) return false;
 
-    const textToCheck = url + ' ' + title + ' ' + h1;
+    const blacklist = [
+      'example.com', 'test.com', 'email.com', 'domain.com',
+      'your-email', 'youremail', 'name@', 'user@', 'info@example',
+      '@2x.', '@3x.', '@media', '.png', '.jpg', '.gif', '.svg',
+      'noreply', 'no-reply', 'donotreply', 'sentry.io', 'wixpress'
+    ];
 
-    for (const pattern of STAFF_PAGE_INDICATORS) {
-      if (pattern.test(textToCheck)) {
-        return {
-          isStaffPage: true,
-          indicator: pattern.toString(),
-          url: window.location.href,
-          title: document.title
-        };
-      }
-    }
-
-    // Check for multiple staff cards
-    const staffCardCount = document.querySelectorAll(
-      '.staff-card, .staff-member, .team-member, [class*="staff"], [class*="faculty"], [class*="employee"]'
-    ).length;
-
-    if (staffCardCount >= 3) {
-      return {
-        isStaffPage: true,
-        indicator: 'multiple-staff-cards',
-        url: window.location.href,
-        title: document.title
-      };
-    }
-
-    return { isStaffPage: false };
+    return !blacklist.some(bl => email.includes(bl));
   }
 
   /**
@@ -84,13 +63,35 @@
   }
 
   /**
+   * Check if current page is likely a school staff page
+   */
+  function detectStaffPage() {
+    const url = window.location.href.toLowerCase();
+    const title = document.title.toLowerCase();
+    const h1 = document.querySelector('h1')?.textContent?.toLowerCase() || '';
+
+    const textToCheck = url + ' ' + title + ' ' + h1;
+
+    for (const pattern of STAFF_PAGE_INDICATORS) {
+      if (pattern.test(textToCheck)) {
+        return { isStaffPage: true, indicator: pattern.toString(), url: window.location.href, title: document.title };
+      }
+    }
+
+    const staffCardCount = document.querySelectorAll('.staff-card, .staff-member, .team-member, [class*="staff"], [class*="faculty"], [class*="employee"]').length;
+    if (staffCardCount >= 3) {
+      return { isStaffPage: true, indicator: 'multiple-staff-cards', url: window.location.href, title: document.title };
+    }
+
+    return { isStaffPage: false };
+  }
+
+  /**
    * Extract job title from text
    */
   function extractJobTitle(text) {
     if (!text) return '';
-
     const lines = text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l);
-
     for (const line of lines) {
       for (const pattern of JOB_TITLE_PATTERNS) {
         if (pattern.test(line) && line.length < 100) {
@@ -98,153 +99,35 @@
         }
       }
     }
-
-    // Look for common title formats
-    const titlePatterns = [
-      /(?:title|position|role)[\s:]+([^\n]+)/i,
-      /(?:^|\n)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Teacher|Principal|Director|Coordinator|Assistant|Manager|Specialist))/m
-    ];
-
-    for (const pattern of titlePatterns) {
-      const match = text.match(pattern);
-      if (match && match[1]) {
-        return cleanText(match[1]);
-      }
-    }
-
     return '';
   }
 
   /**
-   * Extract name from element or nearby content
+   * Extract name from element
    */
   function extractName(element) {
-    // Priority selectors for name
-    const nameSelectors = [
-      'h1', 'h2', 'h3', 'h4',
-      '.name', '.person-name', '.staff-name', '.member-name',
-      '[class*="name"]', '[class*="title"]:not([class*="job"])',
-      '.heading', '.card-title', 'strong', 'b'
-    ];
+    const nameSelectors = ['h1', 'h2', 'h3', 'h4', '.name', '.person-name', '.staff-name', '[class*="name"]', '.card-title', 'strong', 'b'];
 
     for (const selector of nameSelectors) {
       const nameEl = element.querySelector(selector);
       if (nameEl) {
         const text = cleanText(nameEl.textContent);
-        // Validate it looks like a name (2-4 words, no special chars)
         if (text && /^[A-Za-z\s\.\-']{2,60}$/.test(text) && text.split(/\s+/).length <= 5) {
-          // Filter out job titles from name field
           let isJobTitle = false;
           for (const pattern of JOB_TITLE_PATTERNS) {
-            if (pattern.test(text)) {
-              isJobTitle = true;
-              break;
-            }
+            if (pattern.test(text)) { isJobTitle = true; break; }
           }
-          if (!isJobTitle) {
-            return text;
-          }
+          if (!isJobTitle) return text;
         }
       }
     }
-
-    // Try to get from aria-label or title
-    const ariaLabel = element.getAttribute('aria-label');
-    if (ariaLabel && /^[A-Za-z\s\.\-']{2,60}$/.test(ariaLabel)) {
-      return cleanText(ariaLabel);
-    }
-
     return '';
   }
 
-  /**
-   * Extract staff data from card-like elements
-   */
-  function extractFromStaffCards() {
-    const results = [];
-    const seen = new Set();
-
-    // Comprehensive card selectors
-    const cardSelectors = [
-      '.staff-card', '.staff-member', '.team-member', '.faculty-member',
-      '.employee-card', '.person-card', '.profile-card', '.member-card',
-      '.directory-item', '.contact-card', '.people-item', '.user-card',
-      '[class*="staff-"]', '[class*="faculty-"]', '[class*="teacher-"]',
-      '[class*="employee-"]', '[class*="team-member"]', '[class*="person-"]',
-      '.card', '.profile', '.bio', 'article', '.grid-item',
-      'li[class*="member"]', 'div[class*="member"]', 'tr[class*="staff"]'
-    ];
-
-    const allCards = new Set();
-    cardSelectors.forEach(selector => {
-      try {
-        document.querySelectorAll(selector).forEach(card => allCards.add(card));
-      } catch (e) {}
-    });
-
-    allCards.forEach(card => {
-      const html = card.innerHTML;
-      const text = card.textContent || '';
-      const deobfuscatedHtml = deobfuscateEmail(html);
-
-      // Find emails in card
-      const emailMatches = deobfuscatedHtml.match(EMAIL_REGEX) || [];
-
-      emailMatches.forEach(email => {
-        email = email.toLowerCase();
-        if (seen.has(email)) return;
-
-        // Validate email
-        if (!isValidEmail(email)) return;
-
-        seen.add(email);
-
-        // Extract name
-        let name = extractName(card);
-
-        // Extract job title
-        let jobTitle = extractJobTitle(text);
-
-        // If no job title found, look for specific elements
-        if (!jobTitle) {
-          const titleSelectors = [
-            '.job-title', '.position', '.role', '.title',
-            '[class*="title"]', '[class*="position"]', '[class*="role"]',
-            '.subtitle', '.designation', 'small', '.meta'
-          ];
-
-          for (const selector of titleSelectors) {
-            const titleEl = card.querySelector(selector);
-            if (titleEl) {
-              const titleText = cleanText(titleEl.textContent);
-              if (titleText && titleText.length < 100) {
-                // Check if this looks like a job title, not a name
-                for (const pattern of JOB_TITLE_PATTERNS) {
-                  if (pattern.test(titleText)) {
-                    jobTitle = titleText;
-                    break;
-                  }
-                }
-                if (jobTitle) break;
-              }
-            }
-          }
-        }
-
-        results.push({
-          name: name,
-          email: email,
-          jobTitle: jobTitle,
-          source: 'staff-card'
-        });
-      });
-    });
-
-    return results;
-  }
+  // ==================== EXTRACTION METHODS ====================
 
   /**
-   * Extract from mailto links with context
+   * Extract emails from mailto: links (MOST RELIABLE)
    */
   function extractFromMailtoLinks() {
     const results = [];
@@ -259,11 +142,10 @@
       if (!email || seen.has(email) || !isValidEmail(email)) return;
       seen.add(email);
 
-      // Try to find name and title from surrounding context
       let name = '';
       let jobTitle = '';
 
-      // Check link text
+      // Check link text for name
       const linkText = cleanText(link.textContent);
       if (linkText && !linkText.includes('@') && /^[A-Za-z\s\.\-']{2,60}$/.test(linkText)) {
         name = linkText;
@@ -272,25 +154,98 @@
       // Check parent elements for context
       let parent = link.parentElement;
       for (let i = 0; i < 5 && parent; i++) {
-        const parentText = parent.textContent || '';
-
-        if (!name) {
-          name = extractName(parent);
-        }
-
-        if (!jobTitle) {
-          jobTitle = extractJobTitle(parentText);
-        }
-
+        if (!name) name = extractName(parent);
+        if (!jobTitle) jobTitle = extractJobTitle(parent.textContent || '');
         if (name && jobTitle) break;
         parent = parent.parentElement;
       }
 
-      results.push({
-        name: name,
-        email: email,
-        jobTitle: jobTitle,
-        source: 'mailto-link'
+      results.push({ name, email, jobTitle, source: 'mailto' });
+    });
+
+    return results;
+  }
+
+  /**
+   * Extract emails from visible text content
+   */
+  function extractFromTextContent() {
+    const results = [];
+    const seen = new Set();
+    const textContent = document.body.innerText || '';
+
+    // Direct matches
+    const matches = textContent.match(EMAIL_REGEX) || [];
+    matches.forEach(email => {
+      email = email.toLowerCase();
+      if (!seen.has(email) && isValidEmail(email)) {
+        seen.add(email);
+        results.push({ name: '', email, jobTitle: '', source: 'text' });
+      }
+    });
+
+    // Deobfuscated matches
+    const deobfuscated = deobfuscateEmail(textContent);
+    const deobMatches = deobfuscated.match(EMAIL_REGEX) || [];
+    deobMatches.forEach(email => {
+      email = email.toLowerCase();
+      if (!seen.has(email) && isValidEmail(email)) {
+        seen.add(email);
+        results.push({ name: '', email, jobTitle: '', source: 'text-deob' });
+      }
+    });
+
+    return results;
+  }
+
+  /**
+   * Extract emails from data attributes
+   */
+  function extractFromDataAttributes() {
+    const results = [];
+    const seen = new Set();
+    const allElements = document.querySelectorAll('*');
+
+    allElements.forEach(el => {
+      for (const attr of el.attributes) {
+        if (attr.name.startsWith('data-')) {
+          const value = deobfuscateEmail(attr.value);
+          const matches = value.match(EMAIL_REGEX) || [];
+          matches.forEach(email => {
+            email = email.toLowerCase();
+            if (!seen.has(email) && isValidEmail(email)) {
+              seen.add(email);
+              results.push({ name: '', email, jobTitle: '', source: 'data-attr' });
+            }
+          });
+        }
+      }
+    });
+
+    return results;
+  }
+
+  /**
+   * Extract from onclick/onmouseover handlers
+   */
+  function extractFromEventHandlers() {
+    const results = [];
+    const seen = new Set();
+    const elements = document.querySelectorAll('[onclick], [onmouseover], [onmouseenter]');
+
+    elements.forEach(el => {
+      ['onclick', 'onmouseover', 'onmouseenter'].forEach(handler => {
+        const value = el.getAttribute(handler);
+        if (value) {
+          const matches = value.match(EMAIL_REGEX) || [];
+          matches.forEach(email => {
+            email = email.toLowerCase();
+            if (!seen.has(email) && isValidEmail(email)) {
+              seen.add(email);
+              results.push({ name: '', email, jobTitle: '', source: 'handler' });
+            }
+          });
+        }
       });
     });
 
@@ -298,19 +253,97 @@
   }
 
   /**
-   * Extract from table rows (common in staff directories)
+   * Extract from title/alt/aria-label attributes
+   */
+  function extractFromHiddenContent() {
+    const results = [];
+    const seen = new Set();
+
+    document.querySelectorAll('[title], [alt], [aria-label]').forEach(el => {
+      ['title', 'alt', 'aria-label'].forEach(attr => {
+        const value = el.getAttribute(attr);
+        if (value) {
+          const deob = deobfuscateEmail(value);
+          const matches = deob.match(EMAIL_REGEX) || [];
+          matches.forEach(email => {
+            email = email.toLowerCase();
+            if (!seen.has(email) && isValidEmail(email)) {
+              seen.add(email);
+              results.push({ name: '', email, jobTitle: '', source: 'hidden' });
+            }
+          });
+        }
+      });
+    });
+
+    return results;
+  }
+
+  /**
+   * Extract from staff cards with context
+   */
+  function extractFromStaffCards() {
+    const results = [];
+    const seen = new Set();
+
+    const cardSelectors = [
+      '.staff-card', '.staff-member', '.team-member', '.faculty-member',
+      '.employee-card', '.person-card', '.profile-card', '.member-card',
+      '.directory-item', '.contact-card', '[class*="staff-"]', '[class*="faculty-"]',
+      '[class*="employee-"]', '[class*="team-member"]', '.card', '.profile',
+      'article', 'li[class*="member"]', 'div[class*="member"]'
+    ];
+
+    const allCards = new Set();
+    cardSelectors.forEach(selector => {
+      try { document.querySelectorAll(selector).forEach(card => allCards.add(card)); } catch (e) {}
+    });
+
+    allCards.forEach(card => {
+      const html = deobfuscateEmail(card.innerHTML);
+      const text = card.textContent || '';
+      const emailMatches = html.match(EMAIL_REGEX) || [];
+
+      emailMatches.forEach(email => {
+        email = email.toLowerCase();
+        if (seen.has(email) || !isValidEmail(email)) return;
+        seen.add(email);
+
+        const name = extractName(card);
+        let jobTitle = extractJobTitle(text);
+
+        if (!jobTitle) {
+          const titleSelectors = ['.job-title', '.position', '.role', '[class*="title"]', '[class*="position"]', '.subtitle', 'small'];
+          for (const sel of titleSelectors) {
+            const titleEl = card.querySelector(sel);
+            if (titleEl) {
+              const titleText = cleanText(titleEl.textContent);
+              for (const pattern of JOB_TITLE_PATTERNS) {
+                if (pattern.test(titleText)) { jobTitle = titleText; break; }
+              }
+              if (jobTitle) break;
+            }
+          }
+        }
+
+        results.push({ name, email, jobTitle, source: 'card' });
+      });
+    });
+
+    return results;
+  }
+
+  /**
+   * Extract from tables
    */
   function extractFromTables() {
     const results = [];
     const seen = new Set();
 
     document.querySelectorAll('table').forEach(table => {
-      const rows = table.querySelectorAll('tr');
-
-      rows.forEach(row => {
-        const rowText = row.textContent || '';
-        const deobfuscated = deobfuscateEmail(rowText);
-        const emailMatches = deobfuscated.match(EMAIL_REGEX) || [];
+      table.querySelectorAll('tr').forEach(row => {
+        const rowText = deobfuscateEmail(row.textContent || '');
+        const emailMatches = rowText.match(EMAIL_REGEX) || [];
 
         emailMatches.forEach(email => {
           email = email.toLowerCase();
@@ -323,29 +356,17 @@
 
           cells.forEach((cell, index) => {
             const cellText = cleanText(cell.textContent);
-
-            // First cell often contains name
             if (index === 0 && !cellText.includes('@') && /^[A-Za-z\s\.\-']{2,60}$/.test(cellText)) {
               name = cellText;
             }
-
-            // Look for job title
             if (!jobTitle) {
               for (const pattern of JOB_TITLE_PATTERNS) {
-                if (pattern.test(cellText)) {
-                  jobTitle = cellText;
-                  break;
-                }
+                if (pattern.test(cellText)) { jobTitle = cellText; break; }
               }
             }
           });
 
-          results.push({
-            name: name,
-            email: email,
-            jobTitle: jobTitle,
-            source: 'table'
-          });
+          results.push({ name, email, jobTitle, source: 'table' });
         });
       });
     });
@@ -354,47 +375,28 @@
   }
 
   /**
-   * Fallback: Extract emails from entire page with best-effort context
+   * Extract from inline scripts (deep scan only)
    */
-  function extractFromPage() {
+  function extractFromScripts() {
     const results = [];
     const seen = new Set();
-    const pageText = document.body.innerText || '';
-    const deobfuscated = deobfuscateEmail(pageText);
-    const emailMatches = deobfuscated.match(EMAIL_REGEX) || [];
 
-    emailMatches.forEach(email => {
-      email = email.toLowerCase();
-      if (seen.has(email) || !isValidEmail(email)) return;
-      seen.add(email);
-
-      results.push({
-        name: '',
-        email: email,
-        jobTitle: '',
-        source: 'page-scan'
+    document.querySelectorAll('script:not([src])').forEach(script => {
+      const content = script.textContent || '';
+      const matches = content.match(EMAIL_REGEX) || [];
+      matches.forEach(email => {
+        email = email.toLowerCase();
+        if (!seen.has(email) && isValidEmail(email)) {
+          seen.add(email);
+          results.push({ name: '', email, jobTitle: '', source: 'script' });
+        }
       });
     });
 
     return results;
   }
 
-  /**
-   * Validate email address
-   */
-  function isValidEmail(email) {
-    if (!email || email.length < 5) return false;
-    if (!email.includes('@') || !email.includes('.')) return false;
-
-    const blacklist = [
-      'example.com', 'test.com', 'email.com', 'domain.com',
-      'your-email', 'youremail', 'name@', 'user@', 'info@example',
-      '@2x.', '@3x.', '@media', '.png', '.jpg', '.gif', '.svg',
-      'noreply', 'no-reply', 'donotreply'
-    ];
-
-    return !blacklist.some(bl => email.includes(bl));
-  }
+  // ==================== MAIN EXTRACTION ====================
 
   /**
    * Main extraction function - returns array of {name, email, jobTitle}
@@ -403,22 +405,26 @@
     const allResults = [];
     const seenEmails = new Set();
 
-    // Priority order: staff cards, mailto links, tables, page scan
+    // ALL sources run on basic extraction
     const sources = [
-      extractFromStaffCards(),
       extractFromMailtoLinks(),
+      extractFromTextContent(),
+      extractFromDataAttributes(),
+      extractFromEventHandlers(),
+      extractFromHiddenContent(),
+      extractFromStaffCards(),
       extractFromTables()
     ];
 
+    // Deep scan adds scripts
     if (deepScan) {
-      sources.push(extractFromPage());
+      sources.push(extractFromScripts());
     }
 
     // Merge results, preferring entries with more context
     sources.forEach(sourceResults => {
       sourceResults.forEach(result => {
         if (seenEmails.has(result.email)) {
-          // Update existing entry if new one has more info
           const existing = allResults.find(r => r.email === result.email);
           if (existing) {
             if (!existing.name && result.name) existing.name = result.name;
@@ -438,39 +444,24 @@
    * Legacy function for backward compatibility
    */
   function extractAllEmails(deepScan = false) {
-    const results = extractAllWithContext(deepScan);
-    return results.map(r => r.email);
+    return extractAllWithContext(deepScan).map(r => r.email);
   }
 
   // Listen for messages from popup
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'extractEmails') {
       const emails = extractAllEmails(request.deepScan || false);
-      sendResponse({ emails: emails, count: emails.length });
+      sendResponse({ emails, count: emails.length });
     } else if (request.action === 'extractWithContext') {
       const results = extractAllWithContext(request.deepScan || false);
-      sendResponse({ results: results, count: results.length });
+      sendResponse({ results, count: results.length });
     } else if (request.action === 'detectStaffPage') {
-      const detection = detectStaffPage();
-      sendResponse(detection);
+      sendResponse(detectStaffPage());
     } else if (request.action === 'ping') {
       sendResponse({ status: 'ready' });
     }
     return true;
   });
 
-  // Auto-detect and notify if on staff page
-  chrome.storage.sync.get(['autoDetect'], (result) => {
-    if (result.autoDetect) {
-      const detection = detectStaffPage();
-      if (detection.isStaffPage) {
-        chrome.runtime.sendMessage({
-          action: 'staffPageDetected',
-          ...detection
-        });
-      }
-    }
-  });
-
-  console.log('📧 Email Extractor content script loaded (v2 with context)');
+  console.log('📧 Email Extractor v2.1 loaded');
 })();

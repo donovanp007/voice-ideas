@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const bulkTotalEmails = document.getElementById('bulkTotalEmails');
   const bulkPagesScanned = document.getElementById('bulkPagesScanned');
   const exportBulkBtn = document.getElementById('exportBulkBtn');
+  const exportBulkCsvBtn = document.getElementById('exportBulkCsvBtn');
 
   // Elements - History Tab
   const historyList = document.getElementById('historyList');
@@ -83,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Bulk scan
     startBulkScan.addEventListener('click', startBulkScanProcess);
     exportBulkBtn.addEventListener('click', exportBulkToSheets);
+    if (exportBulkCsvBtn) exportBulkCsvBtn.addEventListener('click', exportBulkToCsv);
 
     // History
     clearHistoryBtn.addEventListener('click', clearHistory);
@@ -342,11 +344,21 @@ document.addEventListener('DOMContentLoaded', () => {
     showStatus(`Exported ${results.length} contacts!`, 'success');
   }
 
-  // Export to Google Sheets
+  // Export to Google Sheets (optional)
   async function exportToSheets() {
     const results = filteredResults.length > 0 ? filteredResults : currentResults;
     if (results.length === 0) {
       showStatus('No data to export', 'error');
+      return;
+    }
+
+    // Check if Sheets is configured
+    const settings = await new Promise(resolve => {
+      chrome.storage.sync.get(['sheetId', 'apiKey'], resolve);
+    });
+
+    if (!settings.sheetId || !settings.apiKey) {
+      showStatus('Sheets not configured. Click ⚙️ Settings to set up.', 'error');
       return;
     }
 
@@ -459,10 +471,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Export bulk results to sheets
+  // Export bulk results to CSV
+  function exportBulkToCsv() {
+    if (bulkScanResults.length === 0) {
+      showStatus('No bulk results to export', 'error');
+      return;
+    }
+
+    const timestamp = new Date().toISOString().split('T')[0];
+    const headers = ['Name', 'Email', 'Job Title', 'Source URL', 'Date'];
+    const rows = bulkScanResults.map(r => [
+      r.name || '',
+      r.email,
+      r.jobTitle || '',
+      r.sourceUrl || '',
+      timestamp
+    ]);
+
+    const csv = [headers, ...rows].map(row =>
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bulk_emails_${timestamp}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    showStatus(`Exported ${bulkScanResults.length} contacts!`, 'success');
+  }
+
+  // Export bulk results to sheets (optional)
   async function exportBulkToSheets() {
     if (bulkScanResults.length === 0) {
       showStatus('No bulk results to export', 'error');
+      return;
+    }
+
+    // Check if Sheets is configured
+    const settings = await new Promise(resolve => {
+      chrome.storage.sync.get(['sheetId', 'apiKey'], resolve);
+    });
+
+    if (!settings.sheetId || !settings.apiKey) {
+      showStatus('Sheets not configured. Go to Settings or use CSV export.', 'error');
       return;
     }
 
