@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "School Email Extractor",
-  "version": "1.0.0",
-  "description": "Quickly extract staff email addresses from school websites",
+  "version": "2.0.0",
+  "description": "Extract staff emails with names & job titles, bulk scan, Google Sheets export",
   "permissions": [
     "activeTab",
     "scripting",
     "clipboardWrite",
     "storage",
-    "contextMenus"
+    "contextMenus",
+    "tabs"
   ],
   "commands": {
     "extract-emails": {

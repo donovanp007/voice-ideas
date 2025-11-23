@@ -9,56 +9,139 @@
 <body>
   <div class="container">
     <header>
-      <h1>📧 Email Extractor</h1>
-      <p class="subtitle">Extract staff emails instantly</p>
+      <div class="header-row">
+        <h1>📧 Email Extractor</h1>
+        <a href="settings.html" class="settings-btn" title="Settings">⚙️</a>
+      </div>
+      <p class="subtitle">Extract staff emails with names & titles</p>
     </header>
 
-    <div class="stats">
-      <div class="stat-item">
-        <span class="stat-number" id="emailCount">0</span>
-        <span class="stat-label">Emails Found</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-number" id="uniqueCount">0</span>
-        <span class="stat-label">Unique</span>
-      </div>
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-tab="extract">Extract</button>
+      <button class="tab" data-tab="bulk">Bulk Scan</button>
+      <button class="tab" data-tab="history">History</button>
     </div>
 
-    <div class="actions">
-      <button id="extractBtn" class="btn btn-primary">
-        <span class="btn-icon">🔍</span>
-        Extract Emails
-      </button>
-      <button id="deepScanBtn" class="btn btn-secondary">
-        <span class="btn-icon">🔬</span>
-        Deep Scan
-      </button>
-    </div>
+    <!-- Extract Tab -->
+    <div class="tab-content active" id="tab-extract">
+      <!-- Staff Page Detection Banner -->
+      <div class="detection-banner" id="detectionBanner" style="display: none;">
+        <span class="detection-icon">🎯</span>
+        <span class="detection-text">Staff page detected!</span>
+      </div>
 
-    <div class="results-container" id="resultsContainer" style="display: none;">
-      <div class="results-header">
-        <h3>Extracted Emails</h3>
-        <div class="results-actions">
-          <button id="copyAllBtn" class="btn-small" title="Copy All">📋</button>
-          <button id="exportCsvBtn" class="btn-small" title="Export CSV">📥</button>
-          <button id="clearBtn" class="btn-small" title="Clear">🗑️</button>
+      <div class="stats">
+        <div class="stat-item">
+          <span class="stat-number" id="emailCount">0</span>
+          <span class="stat-label">Contacts</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number" id="withNameCount">0</span>
+          <span class="stat-label">With Names</span>
         </div>
       </div>
-      <div class="email-list" id="emailList"></div>
+
+      <div class="actions">
+        <button id="extractBtn" class="btn btn-primary">
+          <span class="btn-icon">🔍</span>
+          Extract
+        </button>
+        <button id="deepScanBtn" class="btn btn-secondary">
+          <span class="btn-icon">🔬</span>
+          Deep Scan
+        </button>
+      </div>
+
+      <div class="results-container" id="resultsContainer" style="display: none;">
+        <div class="results-header">
+          <h3>Extracted Contacts</h3>
+          <div class="results-actions">
+            <button id="copyAllBtn" class="btn-small" title="Copy Emails">📋</button>
+            <button id="exportCsvBtn" class="btn-small" title="Export CSV">📥</button>
+            <button id="exportSheetsBtn" class="btn-small" title="Send to Google Sheets">📊</button>
+            <button id="clearBtn" class="btn-small" title="Clear">🗑️</button>
+          </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="results-table-wrapper">
+          <table class="results-table" id="resultsTable">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Job Title</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="filters" id="filtersSection" style="display: none;">
+        <h4>Filter by Domain</h4>
+        <div class="filter-chips" id="domainFilters"></div>
+      </div>
     </div>
 
-    <div class="filters" id="filtersSection" style="display: none;">
-      <h4>Filter by Domain</h4>
-      <div class="filter-chips" id="domainFilters"></div>
+    <!-- Bulk Scan Tab -->
+    <div class="tab-content" id="tab-bulk">
+      <div class="bulk-section">
+        <h3>Bulk URL Scanner</h3>
+        <p class="bulk-description">Paste multiple URLs (one per line) to scan all pages</p>
+
+        <textarea id="bulkUrls" placeholder="https://school1.edu/staff&#10;https://school2.edu/faculty&#10;https://school3.edu/team"></textarea>
+
+        <div class="bulk-actions">
+          <button id="startBulkScan" class="btn btn-primary">
+            <span class="btn-icon">🚀</span>
+            Start Bulk Scan
+          </button>
+        </div>
+
+        <div class="bulk-progress" id="bulkProgress" style="display: none;">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <span class="progress-text" id="progressText">0 / 0</span>
+        </div>
+
+        <div class="bulk-results" id="bulkResults" style="display: none;">
+          <div class="bulk-stats">
+            <span id="bulkTotalEmails">0</span> emails from <span id="bulkPagesScanned">0</span> pages
+          </div>
+          <button id="exportBulkBtn" class="btn btn-secondary">
+            <span class="btn-icon">📊</span>
+            Export All to Sheets
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- History Tab -->
+    <div class="tab-content" id="tab-history">
+      <div class="history-section">
+        <div class="history-header">
+          <h3>Extraction History</h3>
+          <button id="clearHistoryBtn" class="btn-small" title="Clear History">🗑️</button>
+        </div>
+
+        <div class="history-list" id="historyList">
+          <p class="empty-state">No extractions yet</p>
+        </div>
+      </div>
     </div>
 
     <div class="status" id="status"></div>
 
     <footer>
-      <p>Click extract or use <kbd>Alt+E</kbd> on any page</p>
+      <p><kbd>Alt+E</kbd> Quick extract · <kbd>Alt+D</kbd> Deep scan</p>
     </footer>
   </div>
 
+  <script src="sheets.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

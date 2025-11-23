@@ -1,20 +1,30 @@
-# School Email Extractor - Chrome Extension
+# School Email Extractor - Chrome Extension v2.0
 
-A fast, automated Chrome extension to extract staff email addresses from school websites.
+A powerful Chrome extension to automatically extract staff email addresses, names, and job titles from school websites with Google Sheets integration.
 
 ## Features
 
-- **One-click extraction** - Extract all emails from any page instantly
-- **Deep scan mode** - Thoroughly scans staff cards, hidden elements, and data attributes
-- **Smart detection** - Finds emails in:
-  - `mailto:` links
-  - Data attributes (`data-email`, etc.)
-  - Hidden text and title attributes
-  - Inline scripts
-  - Obfuscated formats (`name [at] school [dot] edu`)
-- **Domain filtering** - Filter emails by domain
-- **Export options** - Copy all or export to CSV
-- **Keyboard shortcut** - `Alt+E` for quick extraction
+### Core Extraction
+- **Smart extraction** - Extracts Name, Email, and Job Title together
+- **Deep scan mode** - Finds hidden emails in staff cards, data attributes, scripts
+- **Auto-detection** - Automatically detects school staff pages
+- **Multiple sources** - Scans mailto links, tables, staff cards, hidden content
+
+### Google Sheets Integration
+- **Direct export** - Send data straight to your Google Sheet
+- **Auto-append** - Each scrape adds rows with timestamp
+- **Columns**: Name | Email | Job Title | Date | Time | Source URL
+
+### Bulk Scanning
+- **Multi-page scanning** - Paste multiple URLs and scan all at once
+- **Background processing** - Pages open and close automatically
+- **Progress tracking** - Visual progress bar during bulk scans
+
+### History & Export
+- **Extraction history** - All extractions saved with timestamps
+- **View past extractions** - Re-access any previous scrape
+- **Export to CSV** - Download data as spreadsheet
+- **Copy all emails** - Quick clipboard copy
 
 ## Installation
 
@@ -22,53 +32,108 @@ A fast, automated Chrome extension to extract staff email addresses from school 
 2. Enable **Developer mode** (toggle in top right)
 3. Click **Load unpacked**
 4. Select the `email-extractor-extension` folder
-5. The extension icon will appear in your toolbar
+5. Click the extension icon in your toolbar
+
+## Google Sheets Setup
+
+1. **Create a Google Sheet** or use an existing one
+2. **Get the Sheet ID** from the URL:
+   ```
+   https://docs.google.com/spreadsheets/d/[THIS_IS_YOUR_SHEET_ID]/edit
+   ```
+3. **Share your sheet** - Set to "Anyone with the link can edit"
+4. **Get an API Key**:
+   - Go to [Google Cloud Console](https://console.cloud.google.com)
+   - Create a new project
+   - Enable the Google Sheets API
+   - Create an API Key under Credentials
+5. **Configure the extension**:
+   - Click the ⚙️ settings icon
+   - Enter your Sheet ID and API Key
+   - Test the connection
 
 ## Usage
 
-### Basic Extraction
+### Single Page Extraction
 1. Navigate to a school staff page
 2. Click the extension icon
-3. Click **Extract Emails**
-4. View, filter, copy, or export results
+3. Click **Extract** or **Deep Scan**
+4. View results with Name, Email, Job Title
+5. Click 📊 to send to Google Sheets
 
-### Deep Scan
-Use **Deep Scan** for pages where emails are hidden in:
-- Staff photo cards
-- JavaScript data
-- Encoded attributes
+### Bulk Scanning
+1. Click the **Bulk Scan** tab
+2. Paste URLs (one per line):
+   ```
+   https://school1.edu/staff
+   https://school2.edu/faculty
+   https://school3.edu/team
+   ```
+3. Click **Start Bulk Scan**
+4. Watch progress as pages are scanned
+5. Export all results to Sheets
 
 ### Keyboard Shortcuts
-- `Alt+E` - Quick extract from current page
-- Right-click page → "Extract Emails from Page"
+- `Alt+E` - Quick extract
+- `Alt+D` - Deep scan
+
+## Data Format
+
+When exported to Google Sheets, data appears as:
+
+| Name | Email | Job Title | Date | Time | Source URL |
+|------|-------|-----------|------|------|------------|
+| John Smith | jsmith@school.edu | Principal | 2024-01-15 | 14:30:00 | https://... |
+| Jane Doe | jdoe@school.edu | Math Teacher | 2024-01-15 | 14:30:00 | https://... |
 
 ## How It Works
 
-The extension scans the current page for email addresses using multiple methods:
+The extension uses multiple detection methods:
 
-1. **mailto: links** - Standard email links
-2. **Data attributes** - Custom data-* attributes containing emails
-3. **Text content** - Visible text on the page
-4. **Event handlers** - onclick/onmouseover attributes
-5. **Hidden content** - title, alt, aria-label attributes
-6. **Staff cards** - Common school website patterns
-7. **Scripts** - Inline JavaScript with email data
+1. **Staff card detection** - Identifies common card layouts
+2. **mailto: links** - Standard email links
+3. **Table parsing** - Directory-style tables
+4. **Data attributes** - Hidden data-email attributes
+5. **Text analysis** - Pattern matching for obfuscated emails
+6. **Job title patterns** - Recognizes common education titles
 
 ## Privacy
 
 - All processing happens locally in your browser
-- No data is sent to external servers
-- Emails are stored temporarily per tab session
+- Data only goes to YOUR Google Sheet
+- No data sent to any third-party servers
+- History stored locally, clearable anytime
 
-## Icon Setup
+## Files
 
-For the extension to display properly, create PNG icons from the SVG:
-- icons/icon16.png (16x16)
-- icons/icon32.png (32x32)
-- icons/icon48.png (48x48)
-- icons/icon128.png (128x128)
+```
+email-extractor-extension/
+├── manifest.json      # Extension config
+├── popup.html         # Main UI
+├── popup.css          # Styles
+├── popup.js           # UI logic
+├── content.js         # Page extraction
+├── background.js      # Service worker
+├── settings.html      # Settings page
+├── settings.js        # Settings logic
+├── sheets.js          # Google Sheets API
+├── icons/             # Extension icons
+└── README.md          # This file
+```
 
-Or use an online SVG to PNG converter with `icons/icon.svg`.
+## Troubleshooting
+
+**"Could not scan this page"**
+- Some pages block content scripts
+- Try refreshing the page first
+
+**"Permission denied" on Sheets**
+- Make sure your sheet is shared with "Anyone with link can edit"
+- Verify your API key is correct
+
+**No emails found**
+- Try "Deep Scan" for hidden emails
+- Check if the page uses JavaScript to load content
 
 ## License
 
